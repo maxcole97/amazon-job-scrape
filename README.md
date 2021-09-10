@@ -11,3 +11,6 @@ To run, in the terminal:
 ```
 $ python3 scrape.py
 ```
+
+## Psuedocode
+
