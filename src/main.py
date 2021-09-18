@@ -1,57 +1,65 @@
-def process_tile(tile_soup):
-    # 1. do click into read more...
-    # 2. scrape all relevant page fields
-    # 3. put into dictionary like example
+import pandas as pd
+from selenium import webdriver
+from bs4 import BeautifulSoup
+from time import sleep
+from selenium.webdriver.chrome.options import Options
 
+url = 'https://amazon.jobs/en/search?base_query=&loc_query=South+Africa&country=ZAF'
 
-def process_page(page_soup):
-    # get a list of job-tiles from the page soup
-    tiles = page_soup.find_all("#job-tile")
+# get the soup
+chrome_options = Options()
+chrome_options.add_argument("--headless")
+driver = webdriver.Chrome(options=chrome_options)
+driver.get(url)
+sleep(1)
+soup = BeautifulSoup(driver.page_source, 'lxml')
+driver.close()
 
-    rows = []
+job_title = []
+job_id = []
+location = []
+job_category = []
+description = []
+date_listed = []
 
-    # loop thorugh job-tiles
-    for each job-tile in tiles:
-        # take in tile soup and return dictionary with fields
-        job_df = process_tile(tile)
+# date listed   # store this as a date
+for date in soup.find_all("h2", {"class": "posting-date"}):
+    date_listed.append(date.text)
 
-        # eg = {'job_title' : ["Backend Dev"], 'job_category' : ["Technology"]}
+# click into job tiles
+for job_tile in soup.find_all("a", {"class": "job-link"}):
+    job_link = 'https://amazon.jobs' + str(job_tile["href"])
+    driver = webdriver.Chrome(options=chrome_options)
+    driver.get(job_link)
+    sleep(1)
+    tile_soup = BeautifulSoup(driver.page_source, 'lxml')
+    driver.close()
 
-        df = pd.DataFrame(job_df)
-        rows.append(df)
+    # scrape all relevant page fields
+    # job title
+    job_title.append(tile_soup.find("h1", {"class": "title"}).text)
+    # job id
+    job_id.append(tile_soup.find("p", {"class": "meta"}).text.split(": ")[1].split(" |")[0])
+    # location
+    location.append(tile_soup.find("div", {"class": "association-content"}).text)
+    # job category
+    job_category.append(tile_soup.find_all("div", {"class": "association-content"})[1].text)
 
-    # combine rows into df
-    page_df = pd.concat(rows)
+    # description
+    desc_text = ""
+    for item in tile_soup.find_all("div", {"class": "section"}):
+        if "<h2>" in str(item.find('h2')):
+            desc_text += str(item.text)
+    description.append(desc_text)
 
-    return page_df
+# make a dictionary
+data = {}
+data["Job Title"] = job_title
+data["Job ID"] = job_id
+data["Location"] = location
+data["Job Category"] = job_category
+data["Description"] = description
+data["Date Listed"] = date_listed
 
-
-def call_scraper:
-
-    offset = 0
-    failed = False
-    page_dfs = []
-
-    while not failed:
-        try:
-            # get the soup for one page
-            result = request.get(..) # the soup
-            # ...
-
-            # take the soup, process it to return DF with desired page fields
-            page_df = process_page(result)
-
-            # append the page df to our list
-            page_dfs.append(df)
-
-            offset += 10
-        except:
-            failed = True
-
-    # combine all page dfs and write to file
-    all_listings = pd.concat(page_dfs, axis=0)
-    all_listings.to_csv("...")
-
-
-main:
-    call_scraper
+# dataframe
+df = pd.DataFrame.from_dict(data)
